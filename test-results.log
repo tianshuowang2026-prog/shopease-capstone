@@ -1,0 +1,172 @@
+TAP version 13
+# Subtest: TEST 1: POST /api/login — wrong password returns 401
+ok 1 - TEST 1: POST /api/login — wrong password returns 401
+  ---
+  duration_ms: 143.628198
+  type: 'test'
+  ...
+# Subtest: TEST 2: POST /api/login — customer1 correct login returns 200 + token
+ok 2 - TEST 2: POST /api/login — customer1 correct login returns 200 + token
+  ---
+  duration_ms: 34.60836
+  type: 'test'
+  ...
+# Subtest: TEST 3: POST /api/login — merchant1 correct login returns 200 + token
+ok 3 - TEST 3: POST /api/login — merchant1 correct login returns 200 + token
+  ---
+  duration_ms: 35.441114
+  type: 'test'
+  ...
+# Subtest: TEST 4: GET /api/products — product catalog is readable and well-formed
+ok 4 - TEST 4: GET /api/products — product catalog is readable and well-formed
+  ---
+  duration_ms: 9.819198
+  type: 'test'
+  ...
+# Subtest: TEST 5: POST /api/orders + independent before/after stock verification — self-contained
+ok 5 - TEST 5: POST /api/orders + independent before/after stock verification — self-contained
+  ---
+  duration_ms: 154.067909
+  type: 'test'
+  ...
+# Subtest: TEST 6: GET /api/orders — merchant sees an order after placing one (self-contained)
+ok 6 - TEST 6: GET /api/orders — merchant sees an order after placing one (self-contained)
+  ---
+  duration_ms: 85.269188
+  type: 'test'
+  ...
+# Subtest: TEST 7: GET /api/inventory-risk — merchant can read inventory risk ranking
+ok 7 - TEST 7: GET /api/inventory-risk — merchant can read inventory risk ranking
+  ---
+  duration_ms: 32.347801
+  type: 'test'
+  ...
+# Subtest: TEST 8: GET /api/kpis — merchant can read aggregate KPIs
+ok 8 - TEST 8: GET /api/kpis — merchant can read aggregate KPIs
+  ---
+  duration_ms: 29.202026
+  type: 'test'
+  ...
+# Subtest: TEST 9: GET /api/orders — customer token on a merchant-only endpoint returns 403
+ok 9 - TEST 9: GET /api/orders — customer token on a merchant-only endpoint returns 403
+  ---
+  duration_ms: 26.453088
+  type: 'test'
+  ...
+# Subtest: TEST 10: POST /api/orders — ordering more than available stock returns 409 and does not corrupt data
+ok 10 - TEST 10: POST /api/orders — ordering more than available stock returns 409 and does not corrupt data
+  ---
+  duration_ms: 74.252641
+  type: 'test'
+  ...
+# Subtest: TEST 11: GET /api/orders — no Authorization header returns 401
+ok 11 - TEST 11: GET /api/orders — no Authorization header returns 401
+  ---
+  duration_ms: 3.832049
+  type: 'test'
+  ...
+# Subtest: TEST 12: POST /api/products + independent re-fetch — merchant adds a product and it persists
+ok 12 - TEST 12: POST /api/products + independent re-fetch — merchant adds a product and it persists
+  ---
+  duration_ms: 28.965101
+  type: 'test'
+  ...
+# Subtest: TEST 13: POST /api/products — customer token blocked from adding a product, expect 403
+ok 13 - TEST 13: POST /api/products — customer token blocked from adding a product, expect 403
+  ---
+  duration_ms: 34.800931
+  type: 'test'
+  ...
+# Subtest: TEST 14: PUT /api/products/:id + independent re-fetch — merchant edits stock and it persists
+ok 14 - TEST 14: PUT /api/products/:id + independent re-fetch — merchant edits stock and it persists
+  ---
+  duration_ms: 30.816149
+  type: 'test'
+  ...
+# Subtest: TEST 15: GET /api/revenue-summary — merchant can read revenue grouped by day/week/month
+ok 15 - TEST 15: GET /api/revenue-summary — merchant can read revenue grouped by day/week/month
+  ---
+  duration_ms: 25.621074
+  type: 'test'
+  ...
+# Subtest: TEST 16: POST /api/register — requires an email, and a new account cannot log in before verifying
+ok 16 - TEST 16: POST /api/register — requires an email, and a new account cannot log in before verifying
+  ---
+  duration_ms: 54.226497
+  type: 'test'
+  ...
+# Subtest: TEST 17: POST /api/register — password under 6 characters returns 400
+ok 17 - TEST 17: POST /api/register — password under 6 characters returns 400
+  ---
+  duration_ms: 3.038527
+  type: 'test'
+  ...
+# Subtest: TEST 18: GET /api/insights — merchant sees at least one recommendation
+ok 18 - TEST 18: GET /api/insights — merchant sees at least one recommendation
+  ---
+  duration_ms: 26.550901
+  type: 'test'
+  ...
+# Subtest: TEST 19: GET /api/my-orders — customer sees only their own orders, correctly formatted
+ok 19 - TEST 19: GET /api/my-orders — customer sees only their own orders, correctly formatted
+  ---
+  duration_ms: 30.742886
+  type: 'test'
+  ...
+# Subtest: TEST 20: GET /api/products/:id — single product detail includes description and rating fields
+ok 20 - TEST 20: GET /api/products/:id — single product detail includes description and rating fields
+  ---
+  duration_ms: 7.253176
+  type: 'test'
+  ...
+# Subtest: TEST 21: POST review + independent re-fetch — rating persists and average recalculates
+ok 21 - TEST 21: POST review + independent re-fetch — rating persists and average recalculates
+  ---
+  duration_ms: 34.926849
+  type: 'test'
+  ...
+# Subtest: TEST 22: Order status defaults to pending, then PUT + independent re-fetch confirms the transition
+ok 22 - TEST 22: Order status defaults to pending, then PUT + independent re-fetch confirms the transition
+  ---
+  duration_ms: 55.932777
+  type: 'test'
+  ...
+# Subtest: TEST 23: PUT /api/orders/:id/status — invalid status value is rejected
+ok 23 - TEST 23: PUT /api/orders/:id/status — invalid status value is rejected
+  ---
+  duration_ms: 53.047842
+  type: 'test'
+  ...
+# Subtest: TEST 24: POST /api/chat — merchant gets a reply referencing real inventory data (rules fallback)
+ok 24 - TEST 24: POST /api/chat — merchant gets a reply referencing real inventory data (rules fallback)
+  ---
+  duration_ms: 27.425673
+  type: 'test'
+  ...
+# Subtest: TEST 25: Registration + email verification — full self-contained flow, independent login proves it persisted
+ok 25 - TEST 25: Registration + email verification — full self-contained flow, independent login proves it persisted
+  ---
+  duration_ms: 80.879815
+  type: 'test'
+  ...
+# Subtest: TEST 26: Forgot password + reset — self-contained flow with independent login verification
+ok 26 - TEST 26: Forgot password + reset — self-contained flow with independent login verification
+  ---
+  duration_ms: 99.911124
+  type: 'test'
+  ...
+# Subtest: TEST 27: Messaging — customer sends, merchant reads, replies, and both sides see the shared thread
+ok 27 - TEST 27: Messaging — customer sends, merchant reads, replies, and both sides see the shared thread
+  ---
+  duration_ms: 59.672312
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1382.147983

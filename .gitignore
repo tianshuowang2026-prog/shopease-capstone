@@ -1,0 +1,4 @@
+node_modules/
+shopease.db
+server.log
+.DS_Store

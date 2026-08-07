@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>ShopEase — Log in</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  .login-wrap { min-height: 80vh; display: flex; align-items: center; justify-content: center; }
+  .login-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 32px; width: 340px; }
+  .login-card h1 { font-size: 20px; margin: 0 0 4px; }
+  .login-card p { color: var(--sub); font-size: 13px; margin: 0 0 20px; }
+  .login-card label { display: block; font-size: 13px; color: var(--sub); margin: 12px 0 4px; }
+  .login-card input { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+  .login-card button.primary { width: 100%; margin-top: 20px; padding: 11px; background: var(--ink); color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+  .login-card button.primary:hover { background: var(--clay); }
+  .error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .link-row { text-align: center; font-size: 12px; color: var(--sub); margin-top: 14px; }
+  .link-row a { color: var(--clay); cursor: pointer; }
+  .dev-banner { background: #fdeecb; border: 1px solid #e8c98a; color: #8a5a1a; font-size: 12px; padding: 10px 12px; border-radius: 8px; margin-top: 14px; line-height: 1.5; }
+  .dev-banner b { font-family: monospace; font-size: 15px; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<header><div class="brand">Shop<span>Ease</span></div></header>
+<div class="login-wrap">
+  <div class="login-card">
+
+    <div class="panel active" id="panel-login">
+      <h1>Log in</h1>
+      <p>Welcome back — sign in to continue.</p>
+      <label for="username">Username</label>
+      <input id="username" type="text" placeholder="Enter your username" />
+      <label for="password">Password</label>
+      <div style="position:relative">
+        <input id="password" type="password" placeholder="Enter your password" style="padding-right:44px" />
+        <button type="button" onclick="togglePw('password',this)" style="position:absolute;right:6px;top:6px;bottom:6px;border:none;background:none;color:var(--sub);font-size:11px;cursor:pointer;padding:0 8px">Show</button>
+      </div>
+      <button class="primary" onclick="attemptLogin()">Log in</button>
+      <div class="error" id="loginError"></div>
+      <div class="link-row">
+        <a onclick="showPanel('forgot')">Forgot password?</a> &nbsp;•&nbsp;
+        New customer? <a onclick="showPanel('register')">Create an account</a>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-register">
+      <h1>Create an account</h1>
+      <p>We'll send a verification code to your email.</p>
+      <label for="regName">Full name</label>
+      <input id="regName" type="text" placeholder="Alex Doe" />
+      <label for="regEmail">Email</label>
+      <input id="regEmail" type="email" placeholder="alex@example.com" />
+      <label for="regUsername">Choose a username</label>
+      <input id="regUsername" type="text" placeholder="alexdoe" />
+      <label for="regPassword">Choose a password (6+ characters)</label>
+      <div style="position:relative">
+        <input id="regPassword" type="password" placeholder="••••••" style="padding-right:44px" />
+        <button type="button" onclick="togglePw('regPassword',this)" style="position:absolute;right:6px;top:6px;bottom:6px;border:none;background:none;color:var(--sub);font-size:11px;cursor:pointer;padding:0 8px">Show</button>
+      </div>
+      <button class="primary" onclick="attemptRegister()">Send verification code</button>
+      <div class="error" id="registerError"></div>
+      <div class="link-row"><a onclick="showPanel('login')">Back to log in</a></div>
+    </div>
+
+    <div class="panel" id="panel-verify">
+      <h1>Verify your email</h1>
+      <p>Enter the 6-digit code we sent to <b id="verifyEmailTarget"></b>.</p>
+      <label for="verifyCode">Verification code</label>
+      <input id="verifyCode" type="text" inputmode="numeric" maxlength="6" placeholder="384729" />
+      <button class="primary" onclick="attemptVerify()">Verify & continue</button>
+      <div class="error" id="verifyError"></div>
+      <div id="verifyDevBanner" class="dev-banner" style="display:none"></div>
+      <div class="link-row"><a onclick="resendCode()">Resend code</a></div>
+    </div>
+
+    <div class="panel" id="panel-forgot">
+      <h1>Reset your password</h1>
+      <p>Enter your username and we'll send a reset code to your email.</p>
+      <label for="forgotUsername">Username</label>
+      <input id="forgotUsername" type="text" placeholder="Enter your username" />
+      <button class="primary" onclick="requestReset()">Send reset code</button>
+      <div class="error" id="forgotError"></div>
+      <div id="forgotDevBanner" class="dev-banner" style="display:none"></div>
+      <div class="link-row"><a onclick="showPanel('login')">Back to log in</a></div>
+    </div>
+
+    <div class="panel" id="panel-reset">
+      <h1>Enter reset code</h1>
+      <p>Enter the code we sent, plus a new password.</p>
+      <label for="resetCode">Reset code</label>
+      <input id="resetCode" type="text" inputmode="numeric" maxlength="6" placeholder="384729" />
+      <label for="resetPassword">New password (6+ characters)</label>
+      <input id="resetPassword" type="password" placeholder="••••••" />
+      <button class="primary" onclick="attemptResetPassword()">Update password</button>
+      <div class="error" id="resetError"></div>
+      <div class="link-row"><a onclick="showPanel('login')">Back to log in</a></div>
+    </div>
+
+  </div>
+</div>
+<script>
+const API_BASE = 'http://localhost:3000';
+let pendingUsername = '';
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function togglePw(id, btn) {
+  const el = document.getElementById(id);
+  const showing = el.type === 'text';
+  el.type = showing ? 'password' : 'text';
+  btn.textContent = showing ? 'Show' : 'Hide';
+}
+
+async function attemptLogin() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const errorEl = document.getElementById('loginError');
+  errorEl.style.display = 'none';
+  try {
+    const res = await fetch(API_BASE + '/api/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.needsVerification) {
+        pendingUsername = data.username;
+        document.getElementById('verifyEmailTarget').textContent = 'your email';
+        showPanel('verify');
+        return;
+      }
+      errorEl.textContent = data.error || 'Login failed'; errorEl.style.display = 'block'; return;
+    }
+    sessionStorage.setItem('shopease_token', data.token);
+    sessionStorage.setItem('shopease_role', data.role);
+    sessionStorage.setItem('shopease_name', data.name);
+    window.location.href = data.role === 'merchant' ? 'merchant-admin.html' : 'customer-app.html';
+  } catch (err) {
+    errorEl.textContent = 'Cannot reach backend at ' + API_BASE + ' — is the server running?';
+    errorEl.style.display = 'block';
+  }
+}
+document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+
+async function attemptRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const username = document.getElementById('regUsername').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const errorEl = document.getElementById('registerError');
+  errorEl.style.display = 'none';
+  try {
+    const res = await fetch(API_BASE + '/api/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || 'Registration failed'; errorEl.style.display = 'block'; return; }
+    pendingUsername = username;
+    document.getElementById('verifyEmailTarget').textContent = email;
+    const banner = document.getElementById('verifyDevBanner');
+    if (data.devCode) {
+      banner.style.display = 'block';
+      banner.innerHTML = `Dev mode — no email service is configured, so here's the code directly: <b>${data.devCode}</b>`;
+    } else {
+      banner.style.display = 'none';
+    }
+    showPanel('verify');
+  } catch (err) {
+    errorEl.textContent = 'Cannot reach backend — is the server running?';
+    errorEl.style.display = 'block';
+  }
+}
+
+async function attemptVerify() {
+  const code = document.getElementById('verifyCode').value.trim();
+  const errorEl = document.getElementById('verifyError');
+  errorEl.style.display = 'none';
+  try {
+    const res = await fetch(API_BASE + '/api/verify-email', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: pendingUsername, code })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || 'Verification failed'; errorEl.style.display = 'block'; return; }
+    sessionStorage.setItem('shopease_token', data.token);
+    sessionStorage.setItem('shopease_role', data.role);
+    sessionStorage.setItem('shopease_name', data.name);
+    window.location.href = 'customer-app.html';
+  } catch (err) {
+    errorEl.textContent = 'Cannot reach backend — is the server running?';
+    errorEl.style.display = 'block';
+  }
+}
+
+async function resendCode() {
+  const res = await fetch(API_BASE + '/api/resend-verification', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: pendingUsername })
+  });
+  const data = await res.json();
+  const banner = document.getElementById('verifyDevBanner');
+  if (data.devCode) {
+    banner.style.display = 'block';
+    banner.innerHTML = `Dev mode — here's the new code: <b>${data.devCode}</b>`;
+  }
+}
+
+async function requestReset() {
+  const username = document.getElementById('forgotUsername').value.trim();
+  const errorEl = document.getElementById('forgotError');
+  errorEl.style.display = 'none';
+  try {
+    const res = await fetch(API_BASE + '/api/forgot-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    const data = await res.json();
+    pendingUsername = username;
+    if (data.devCode) {
+      const target = document.getElementById('forgotDevBanner');
+      target.style.display = 'block';
+      target.innerHTML = `Dev mode — no email service is configured, so here's the code directly: <b>${data.devCode}</b>`;
+      setTimeout(() => showPanel('reset'), 1200);
+    } else {
+      showPanel('reset');
+    }
+  } catch (err) {
+    errorEl.textContent = 'Cannot reach backend — is the server running?';
+    errorEl.style.display = 'block';
+  }
+}
+
+async function attemptResetPassword() {
+  const code = document.getElementById('resetCode').value.trim();
+  const newPassword = document.getElementById('resetPassword').value;
+  const errorEl = document.getElementById('resetError');
+  errorEl.style.display = 'none';
+  try {
+    const res = await fetch(API_BASE + '/api/reset-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: pendingUsername, code, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || 'Reset failed'; errorEl.style.display = 'block'; return; }
+    showPanel('login');
+    document.getElementById('loginError').style.display = 'none';
+  } catch (err) {
+    errorEl.textContent = 'Cannot reach backend — is the server running?';
+    errorEl.style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+### ShopEase API Tests — VS Code REST Client format
+### Install the "REST Client" extension first, then click "Send Request" above each block.
+### Requires the backend running: node server.js
+### Tokens and IDs are automatically captured from earlier responses and reused below —
+### run the requests roughly in order the first time through.
+
+@baseUrl = http://localhost:3000
+
+
+### TEST 1: POST /api/login — wrong password (expect 401)
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{
+  "username": "customer1",
+  "password": "wrong"
+}
+
+
+### TEST 2: POST /api/login — customer1 correct login (expect 200 + token)
+# @name loginCustomer
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{
+  "username": "customer1",
+  "password": "demo123"
+}
+
+
+### TEST 3: POST /api/login — merchant1 correct login (expect 200 + token)
+# @name loginMerchant
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{
+  "username": "merchant1",
+  "password": "demo123"
+}
+
+
+### TEST 4: GET /api/products — check stock BEFORE placing an order (watch id 2, Woven tote bag)
+GET {{baseUrl}}/api/products
+
+
+### TEST 5: POST /api/orders — customer buys 2x product id 2 (expect 201)
+# @name placeOrder
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{loginCustomer.response.body.$.token}}
+
+{
+  "items": [{ "productId": 2, "qty": 2 }]
+}
+
+
+### TEST 6: GET /api/products — stock AFTER the order (should be 2 less than TEST 4)
+GET {{baseUrl}}/api/products
+
+
+### TEST 7: GET /api/orders — merchant sees the order just placed
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{loginMerchant.response.body.$.token}}
+
+
+### TEST 8: GET /api/inventory-risk — product with reduced stock ranks near the top
+GET {{baseUrl}}/api/inventory-risk
+Authorization: Bearer {{loginMerchant.response.body.$.token}}
+
+
+### TEST 9: GET /api/kpis — totalOrders and totalRevenue reflect the order
+GET {{baseUrl}}/api/kpis
+Authorization: Bearer {{loginMerchant.response.body.$.token}}
+
+
+### TEST 10: GET /api/orders — using CUSTOMER token on a merchant-only endpoint (expect 403)
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{loginCustomer.response.body.$.token}}
+
+
+### TEST 11: POST /api/orders — ordering more than available stock (expect 409)
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{loginCustomer.response.body.$.token}}
+
+{
+  "items": [{ "productId": 5, "qty": 999 }]
+}
+
+
+### TEST 12: GET /api/orders — no Authorization header at all (expect 401)
+GET {{baseUrl}}/api/orders
+
+
+### TEST 13: POST /api/products — merchant adds a new product (expect 201)
+# @name addProduct
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+Authorization: Bearer {{loginMerchant.response.body.$.token}}
+
+{
+  "name": "Wool beanie",
+  "category": "Accessories",
+  "price": 22,
+  "stock": 20,
+  "avgDailySales": 2,
+  "icon": "🧢"
+}
+
+
+### TEST 14: POST /api/products — using CUSTOMER token (expect 403)
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+Authorization: Bearer {{loginCustomer.response.body.$.token}}
+
+{
+  "name": "x",
+  "category": "x",
+  "price": 1,
+  "stock": 1
+}
+
+
+### TEST 15: PUT /api/products/:id — merchant edits the new product's stock (expect 200, stock 50)
+PUT {{baseUrl}}/api/products/{{addProduct.response.body.$.id}}
+Content-Type: application/json
+Authorization: Bearer {{loginMerchant.response.body.$.token}}
+
+{
+  "stock": 50
+}
+
+
+### TEST 16: GET /api/revenue-summary — daily/weekly/monthly totals include the order
+GET {{baseUrl}}/api/revenue-summary
+Authorization: Bearer {{loginMerchant.response.body.$.token}}
+
+
+### TEST 17: POST /api/register — new customer signup (expect 201 + token)
+POST {{baseUrl}}/api/register
+Content-Type: application/json
+
+{
+  "username": "newbie_vscode",
+  "password": "testpass123",
+  "name": "New Buyer"
+}
+
+
+### TEST 18: POST /api/register — password under 6 characters (expect 400)
+POST {{baseUrl}}/api/register
+Content-Type: application/json
+
+{
+  "username": "shortpw_vscode",
+  "password": "123",
+  "name": "X"
+}
+
+
+### TEST 19: GET /api/insights — merchant sees Smart Advisor recommendations
+GET {{baseUrl}}/api/insights
+Authorization: Bearer {{loginMerchant.response.body.$.token}}
+
+
+### TEST 20: GET /api/my-orders — customer sees own order history (formatted as ORD-#####)
+GET {{baseUrl}}/api/my-orders
+Authorization: Bearer {{loginCustomer.response.body.$.token}}
