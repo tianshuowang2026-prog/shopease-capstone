@@ -320,7 +320,11 @@ Advance an order's fulfillment status. Allowed values: `pending`, `shipped`, `co
 ---
 
 ## 18. POST /api/chat  (any logged-in user)
-Basic AI assistant — business-focused context for merchants (inventory/revenue), catalog-focused for customers. Same AI-with-fallback pattern as `/api/insights`: tries a real Claude call if `ANTHROPIC_API_KEY` is set, falls back to canned rule-based replies otherwise. No server-side conversation storage — the client sends recent history each time.
+Basic AI assistant — business-focused context for merchants (inventory/revenue), catalog-focused for customers. Same AI-with-fallback pattern as `/api/insights`: tries a real Claude call if `ANTHROPIC_API_KEY` is set, falls back to a rules-based reply otherwise. No server-side conversation storage — the client sends recent history each time, which the rules-based fallback also uses for short-term memory (see below).
+
+**The rules-based fallback genuinely searches live data, not a static message.** For customers, it matches the question against the real product catalog — a named category returns the actual matching products with live price/stock; a named product returns its real price and stock; a price-range question ("under $20", "cheapest") searches real prices; an unmatched question still returns the real category names rather than a generic platitude. For merchants, stock/reorder questions are checked against real days-of-stock-left, and revenue questions point to the live reporting panel.
+
+**Short-term memory:** for brief follow-up messages (6 words or fewer), the rules engine looks at the last assistant reply in the supplied `history` array to resolve context-dependent questions — e.g., asking "how much?" right after being told about a specific product answers using that product; asking after a category listing that named multiple products triggers a clarifying "which one did you mean" instead of a generic no-match reply.
 
 **Input:**
 ```json
@@ -329,6 +333,14 @@ Basic AI assistant — business-focused context for merchants (inventory/revenue
 **Output — 200 OK:**
 ```json
 { "reply": "These need attention soon: Woven tote bag, Hand-poured soap.", "source": "rules", "fallbackReason": "ANTHROPIC_API_KEY not set" }
+```
+**Output — 200 OK (customer, category match):**
+```json
+{ "reply": "In Accessories, we have: Woven tote bag ($32.00, 6 in stock); Leather wallet ($45.00, 9 in stock); Knit scarf ($28.00, 30 in stock).", "source": "rules", "fallbackReason": "ANTHROPIC_API_KEY not set" }
+```
+**Output — 200 OK (customer, ambiguous follow-up after a category listing):**
+```json
+{ "reply": "Which one did you mean — Ceramic mug, Scented candle?", "source": "rules", "fallbackReason": "ANTHROPIC_API_KEY not set" }
 ```
 
 ---
@@ -390,6 +402,15 @@ One row per customer who has exchanged messages, sorted by most recent activity.
 
 ## 27. GET /api/messages/unread-count  (any logged-in user)
 **Output:** `{ "count": 3 }`
+
+---
+
+## 28. DELETE /api/products/:id  (merchant only)
+Deletes a product outright. Blocked with 409 if the product has any order history — deleting it would corrupt past order records (an order_item pointing to a product_id that no longer exists). Its reviews are removed along with it.
+
+**Output — 200 OK:** `{ "id": 7, "deleted": true, "name": "Wool beanie" }`
+**Output — 409 Conflict:** `{ "error": "Cannot delete \"Wool beanie\" — it has 2 existing order(s) referencing it. Deleting it would corrupt past order records." }`
+**Output — 404 Not Found:** `{ "error": "Product not found" }`
 
 ---
 

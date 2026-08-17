@@ -5,38 +5,46 @@
 <title>ShopEase — Merchant Dashboard</title>
 <link rel="stylesheet" href="shared.css" />
 <style>
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
-  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-  .kpi .label { font-size: 12px; color: var(--sub); margin-bottom: 6px; }
-  .kpi .value { font-size: 24px; font-weight: 700; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 26px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px; box-shadow: var(--shadow-sm); transition: box-shadow 0.15s, transform 0.15s; }
+  .kpi:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .kpi .label { font-size: 12px; color: var(--sub); font-weight: 600; margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .kpi .value { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--sub); font-weight: 500; padding: 8px 6px; border-bottom: 1px solid var(--line); }
-  td { padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  .badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+  th { text-align: left; color: var(--sub); font-weight: 700; padding: 10px 8px; border-bottom: 2px solid var(--line); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tr:hover td { background: #faf7f1; }
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
   .badge.reorder { background: #fbe9d9; color: var(--warn); }
   .badge.healthy { background: #e2f2e8; color: var(--ok); }
   .empty { color: var(--sub); font-size: 13px; padding: 12px 0; }
-  .refresh-btn { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; float: right; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 14px; }
-  .tabs button { border: 1px solid var(--line); background: #fff; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--sub); }
+  .refresh-btn { border: 1px solid var(--line); background: #fff; border-radius: var(--radius-sm); padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; float: right; transition: box-shadow 0.15s; }
+  .refresh-btn:hover { box-shadow: var(--shadow-sm); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .tabs button { border: 1px solid var(--line); background: #fff; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--sub); transition: all 0.15s; }
+  .tabs button:hover { border-color: #d8d2c4; }
   .tabs button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
   .rev-table-wrap { display: none; } .rev-table-wrap.active { display: block; }
-  .product-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 10px; margin-bottom: 10px; align-items: end; }
-  .product-form label { font-size: 11px; color: var(--sub); display: block; margin-bottom: 3px; }
-  .product-form input, .product-form textarea { width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; font-family: inherit; }
-  .product-form textarea { grid-column: 1 / -1; min-height: 50px; resize: vertical; }
+  .product-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 12px; margin-bottom: 12px; align-items: end; }
+  .product-form label { font-size: 11px; color: var(--sub); font-weight: 600; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.02em; }
+  .product-form input, .product-form textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; transition: border-color 0.15s, box-shadow 0.15s; }
+  .product-form input:focus, .product-form textarea:focus { outline: none; border-color: var(--clay); box-shadow: 0 0 0 3px rgba(201,98,47,0.1); }
+  .product-form textarea { grid-column: 1 / -1; min-height: 55px; resize: vertical; }
   .product-form .file-field { grid-column: span 1; }
-  .product-form button.submit { padding: 8px 14px; background: var(--clay); color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; height: 34px; }
-  .edit-btn { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; margin-right: 4px; }
-  .edit-row input { width: 70px; padding: 4px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; }
-  .save-btn { border: none; background: var(--ok); color: #fff; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
-  .thumb-cell img { width: 32px; height: 32px; object-fit: cover; border-radius: 5px; vertical-align: middle; margin-right: 6px; }
+  .product-form button.submit { padding: 9px 16px; background: var(--clay); color: #fff; border: none; border-radius: var(--radius-sm); font-weight: 700; font-size: 13px; cursor: pointer; height: 37px; transition: background 0.15s; }
+  .product-form button.submit:hover { background: var(--clay-dark); }
+  .edit-btn { border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 4px 11px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 4px; transition: box-shadow 0.15s; }
+  .edit-btn:hover { box-shadow: var(--shadow-sm); }
+  .edit-row input { width: 70px; padding: 5px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+  .save-btn { border: none; background: var(--ok); color: #fff; border-radius: 7px; padding: 5px 11px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .thumb-cell img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; vertical-align: middle; margin-right: 8px; box-shadow: var(--shadow-sm); }
 
-  .status-badge { padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .status-badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
   .status-pending { background: #f0ece2; color: var(--sub); }
   .status-shipped { background: #fdeecb; color: var(--warn); }
   .status-completed { background: #e2f2e8; color: var(--ok); }
-  .advance-btn { border: none; background: var(--ink); color: #fff; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; margin-left: 8px; }
+  .advance-btn { border: none; background: var(--ink); color: #fff; border-radius: 7px; padding: 5px 11px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 8px; transition: background 0.15s; }
+  .advance-btn:hover { background: var(--clay); }
 
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
   .modal-overlay.show { display: flex; }
@@ -58,6 +66,8 @@
   .chat-msg { font-size: 13px; padding: 8px 10px; border-radius: 8px; max-width: 85%; }
   .chat-msg.user { background: var(--ink); color: #fff; align-self: flex-end; }
   .chat-msg.assistant { background: var(--bg); align-self: flex-start; }
+  .msg-time { font-size: 10px; color: var(--sub); margin-top: 2px; }
+  .msg-time.mine { text-align: right; }
   .chat-input-row { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--line); }
   .chat-input-row input { flex: 1; padding: 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
   .chat-input-row button { border: none; background: var(--clay); color: #fff; border-radius: 8px; padding: 0 12px; cursor: pointer; }
@@ -111,7 +121,7 @@
     <h2>Manage products</h2>
     <form class="product-form" id="addProductForm" onsubmit="addProduct(event)">
       <div><label>Name</label><input id="newName" placeholder="Wool beanie" required /></div>
-      <div><label>Category</label><input id="newCategory" placeholder="Accessories" required /></div>
+      <div><label>Category</label><input id="newCategory" list="categoryOptions" placeholder="Accessories (existing) or type a new one" required /><datalist id="categoryOptions"></datalist></div>
       <div><label>Price</label><input id="newPrice" type="number" step="0.01" placeholder="22" required /></div>
       <div><label>Stock</label><input id="newStock" type="number" placeholder="20" required /></div>
       <div><label>Avg daily sales</label><input id="newAvg" type="number" step="0.1" placeholder="2" /></div>
@@ -149,7 +159,7 @@
       </div>
       <div id="msgThread" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--bg);border-radius:8px;margin-bottom:10px"></div>
       <div style="display:flex;gap:6px">
-        <input id="msgInput" type="text" placeholder="Type a reply…" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px" onkeydown="if(event.key==='Enter')sendCustomerMessage()" />
+        <input id="msgInput" type="text" placeholder="Type a reply…" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:13px" onkeydown="if(event.key==='Enter' && !event.isComposing)sendCustomerMessage()" />
         <button onclick="sendCustomerMessage()" style="border:none;background:var(--clay);color:#fff;border-radius:8px;padding:0 14px;cursor:pointer">Send</button>
       </div>
     </div>
@@ -173,14 +183,31 @@
     <div class="chat-msg assistant">Ask me about stock levels, reorder priorities, or revenue trends.</div>
   </div>
   <div class="chat-input-row">
-    <input id="chatInput" type="text" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendChat()" />
+    <input id="chatInput" type="text" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.isComposing)sendChat()" />
     <button onclick="sendChat()">Send</button>
   </div>
 </div>
 
 <script src="chart.umd.min.js"></script>
 <script>
-const API_BASE = 'http://localhost:3000';
+const API_BASE = window.location.origin;
+// XSS fix: escape any value that came from user input (product name/description, review text,
+// chat/message content) before it goes into innerHTML. See matching note in customer-app.html —
+// this was previously unescaped, meaning a script tag typed into any of these fields would have
+// executed for the next person who viewed it.
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+function formatMsgTime(sqliteTimestamp) {
+  const d = new Date(sqliteTimestamp.replace(' ', 'T') + 'Z');
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
 const token = sessionStorage.getItem('shopease_token');
 const role = sessionStorage.getItem('shopease_role');
 if (!token || role !== 'merchant') window.location.href = 'login.html';
@@ -246,12 +273,25 @@ async function addProduct(evt) {
   } catch (err) { alert('Failed to add product: ' + err.message); }
 }
 
+async function deleteProduct(id) {
+  const p = latestInventory.find(x => x.id === id);
+  if (!confirm(`Delete "${p ? p.name : 'this product'}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(API_BASE + '/api/products/' + id, {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    await loadAll();
+  } catch (err) { alert('Failed to delete: ' + err.message); }
+}
+
 function editRow(id) {
   const p = latestInventory.find(x => x.id === id);
   const row = document.getElementById('prow-' + id);
   row.innerHTML = `
-    <td>${p.name}</td>
-    <td>${p.category || ''}</td>
+    <td>${escapeHtml(p.name)}</td>
+    <td>${escapeHtml(p.category) || ''}</td>
     <td><input class="edit-row" id="ep-${id}" type="number" step="0.01" value="${p.price}"></td>
     <td><input class="edit-row" id="es-${id}" type="number" value="${p.stock}"></td>
     <td><input class="edit-row" id="ea-${id}" type="number" step="0.1" value="${p.avgDailySales}"></td>
@@ -284,17 +324,17 @@ async function openDetails(id) {
       fetch(API_BASE + '/api/products/' + id + '/reviews').then(r => r.json())
     ]);
     content.innerHTML = `
-      <h2>${product.name}</h2>
-      ${product.imageUrl ? `<img src="${API_BASE + product.imageUrl}" style="width:100%;height:160px;object-fit:cover;border-radius:8px;margin-bottom:10px">` : ''}
+      <h2>${escapeHtml(product.name)}</h2>
+      ${product.imageUrl ? `<img src="${API_BASE + product.imageUrl}" style="width:100%;height:160px;object-fit:contain;background:var(--bg);border-radius:8px;margin-bottom:10px">` : ''}
       <label>Description (shown to customers)</label>
-      <textarea id="detailDescription">${product.description || ''}</textarea>
+      <textarea id="detailDescription">${escapeHtml(product.description)}</textarea>
       <label>Replace photo</label>
       <input id="detailImage" type="file" accept="image/*" />
       <button class="save" onclick="saveDetails(${product.id})">Save changes</button>
       <div style="margin-top:18px;font-weight:600;font-size:13px">Reviews (${reviews.length}) — average ${product.avgRating ?? 'n/a'}★</div>
       <div id="detailReviews">
         ${reviews.length === 0 ? '<p style="color:var(--sub);font-size:13px">No reviews yet.</p>' :
-          reviews.map(r => `<div class="review-row"><div class="rname">${r.customerName} — ${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>${r.comment ? `<div style="color:var(--sub)">${r.comment}</div>` : ''}</div>`).join('')}
+          reviews.map(r => `<div class="review-row"><div class="rname">${escapeHtml(r.customerName)} — ${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>${r.comment ? `<div style="color:var(--sub)">${escapeHtml(r.comment)}</div>` : ''}</div>`).join('')}
       </div>
     `;
   } catch (err) {
@@ -339,6 +379,8 @@ async function loadAll() {
       api('/api/kpis'), api('/api/inventory-risk'), api('/api/orders'), api('/api/revenue-summary'), api('/api/insights')
     ]);
     latestInventory = inventory;
+    const cats = [...new Set(inventory.map(p => p.category))];
+    document.getElementById('categoryOptions').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
     latestOrders = orders;
 
     document.getElementById('kpiOrders').textContent = kpis.totalOrders;
@@ -346,13 +388,13 @@ async function loadAll() {
     document.getElementById('kpiAOV').textContent = '$' + kpis.avgOrderValue.toFixed(2);
     document.getElementById('kpiLowStock').textContent = kpis.lowStockCount;
 
-    const iconFor = { reorder: '📦', 'slow-mover': '🐢', revenue: '📈', ok: '✅' };
+    const iconFor = { reorder: '📦', 'quality-risk': '⭐', 'slow-mover': '🐢', revenue: '📈', ok: '✅' };
     const sourceBadge = insightsData.source === 'ai'
       ? '<span style="background:#dff0ea;color:#1d7a4c;font-size:10px;padding:2px 8px;border-radius:10px;margin-left:6px">Live AI (Claude)</span>'
       : '<span style="background:#f0ece2;color:var(--sub);font-size:10px;padding:2px 8px;border-radius:10px;margin-left:6px">Rules engine' + (insightsData.fallbackReason ? ' — AI unavailable' : '') + '</span>';
     document.getElementById('insightsSource').innerHTML = sourceBadge;
     document.getElementById('insightsList').innerHTML = insightsData.insights.map(i =>
-      `<div style="padding:8px 0;border-bottom:1px solid #f0e0cc;font-size:13px">${iconFor[i.type] || '•'} ${i.message}</div>`
+      `<div style="padding:8px 0;border-bottom:1px solid #f0e0cc;font-size:13px">${iconFor[i.type] || '•'} ${escapeHtml(i.message)}</div>`
     ).join('');
 
     renderRevTable('rev-daily', revenue.daily, 'date', 'Date');
@@ -360,13 +402,13 @@ async function loadAll() {
     renderRevTable('rev-monthly', revenue.monthly, 'month', 'Month');
 
     document.getElementById('inventoryBody').innerHTML = inventory.map(p => `
-      <tr><td>${p.name}</td><td>${p.stock}</td><td>${p.avgDailySales}/day</td><td>${p.daysLeft} days</td>
+      <tr><td>${escapeHtml(p.name)}</td><td>${p.stock}</td><td>${p.avgDailySales}/day</td><td>${p.daysLeft} days</td>
       <td><span class="badge ${p.status}">${p.status === 'reorder' ? 'Reorder now' : 'Healthy'}</span></td></tr>`).join('');
 
     document.getElementById('productsBody').innerHTML = inventory.map(p => `
-      <tr id="prow-${p.id}"><td class="thumb-cell">${p.imageUrl ? `<img src="${API_BASE + p.imageUrl}">` : ''}${p.name}</td><td>${p.category || ''}</td><td>$${(p.price ?? 0).toFixed ? p.price.toFixed(2) : p.price}</td>
+      <tr id="prow-${p.id}"><td class="thumb-cell">${p.imageUrl ? `<img src="${API_BASE + p.imageUrl}">` : ''}${escapeHtml(p.name)}</td><td>${escapeHtml(p.category) || ''}</td><td>$${(p.price ?? 0).toFixed ? p.price.toFixed(2) : p.price}</td>
       <td>${p.stock}</td><td>${p.avgDailySales}</td>
-      <td><button class="edit-btn" onclick="editRow(${p.id})">Edit</button><button class="edit-btn" onclick="openDetails(${p.id})">Details</button></td></tr>`).join('');
+      <td><button class="edit-btn" onclick="editRow(${p.id})">Edit</button><button class="edit-btn" onclick="openDetails(${p.id})">Details</button><button class="edit-btn" style="color:var(--danger);border-color:var(--danger)" onclick="deleteProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Delete</button></td></tr>`).join('');
 
     document.getElementById('ordersList').innerHTML = orders.length === 0
       ? '<div class="empty">No orders yet.</div>'
@@ -427,7 +469,7 @@ async function loadConversations() {
       ? '<p style="color:var(--sub);font-size:13px">No customer messages yet.</p>'
       : convos.map(c => `
         <div onclick="openThread(${c.customerId}, '${c.customerName.replace(/'/g, "\\'")}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:13px">
-          <span><b>${c.customerName}</b> — <span style="color:var(--sub)">${c.lastMessage.slice(0, 40)}${c.lastMessage.length > 40 ? '…' : ''}</span></span>
+          <span><b>${c.customerName}</b> — <span style="color:var(--sub)">${c.lastMessage.slice(0, 40)}${c.lastMessage.length > 40 ? '…' : ''} ${c.lastAt ? '· ' + formatMsgTime(c.lastAt) : ''}</span></span>
           ${c.unreadCount > 0 ? `<span style="background:var(--clay);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">${c.unreadCount}</span>` : ''}
         </div>`).join('');
   } catch (err) {
@@ -444,7 +486,11 @@ async function openThread(customerId, customerName) {
   try {
     const res = await fetch(API_BASE + '/api/messages/thread/' + customerId, { headers: { 'Authorization': 'Bearer ' + token } });
     const msgs = await res.json();
-    box.innerHTML = msgs.map(m => `<div class="chat-msg ${m.isMine ? 'user' : 'assistant'}">${m.content}</div>`).join('');
+    box.innerHTML = msgs.map(m => `
+      <div>
+        <div class="chat-msg ${m.isMine ? 'user' : 'assistant'}">${escapeHtml(m.content)}</div>
+        <div class="msg-time ${m.isMine ? 'mine' : ''}">${formatMsgTime(m.createdAt)}</div>
+      </div>`).join('');
     box.scrollTop = box.scrollHeight;
     loadConversations();
   } catch (err) {

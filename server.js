@@ -1,6 +1,7 @@
 // server.js — REST API for ShopEase (customer storefront + merchant admin backend)
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -10,12 +11,25 @@ const db = require('./db');
 const { sendCodeEmail, generateCode, isConfigured: mailerConfigured } = require('./mailer');
 
 const app = express();
+// contentSecurityPolicy is off deliberately: the frontend pages use inline <script> blocks
+// and inline onclick="..." handlers throughout, which helmet's default CSP blocks outright —
+// enabling it as-is would silently break every button on the site. The other headers below
+// (clickjacking protection, MIME-sniffing protection, etc.) are safe to enable without touching
+// the frontend, so we keep those and leave a stricter CSP + inline-script refactor as noted
+// future work rather than risking the whole app days before presenting.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 app.use('/uploads', express.static(UPLOAD_DIR));
+
+// Serves login.html, customer-app.html, merchant-admin.html, shared.css, etc. from the
+// frontend/ folder at the site root — e.g. GET /login.html resolves to frontend/login.html.
+// This line was missing from this snapshot of server.js; without it, Express has no route
+// for any of the HTML pages and every page request 404s, even though the API itself works.
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
@@ -187,9 +201,16 @@ app.post('/api/reset-password', (req, res) => {
   res.json({ message: 'Password updated — you can now log in.' });
 });
 // Output: [ { "id":1, "name":"Ceramic mug", "category":"Home", "price":18, "stock":42, "avgDailySales":3, "icon":"☕", "imageUrl":null, "description":"..." }, ... ]
+// Output: [ { "id":1, "name":"Ceramic mug", "category":"Home", "price":18, "stock":42, "avgDailySales":3, "icon":"☕", "imageUrl":null, "description":"...", "createdAt":"...", "avgRating":4.5, "reviewCount":2 }, ... ]
 app.get('/api/products', (req, res) => {
-  const rows = db.prepare('SELECT id, name, category, price, stock, avg_daily_sales AS avgDailySales, icon, image_url AS imageUrl, description FROM products').all();
-  res.json(rows);
+  const rows = db.prepare(`
+    SELECT p.id, p.name, p.category, p.price, p.stock, p.avg_daily_sales AS avgDailySales, p.icon,
+           p.image_url AS imageUrl, p.description, p.created_at AS createdAt,
+           AVG(r.rating) AS avgRating, COUNT(r.id) AS reviewCount
+    FROM products p LEFT JOIN reviews r ON r.product_id = p.id
+    GROUP BY p.id
+  `).all();
+  res.json(rows.map(p => ({ ...p, avgRating: p.avgRating ? +p.avgRating.toFixed(1) : null })));
 });
 
 // ---------- GET /api/products/:id (public) — single product detail, including average rating ----------
@@ -213,6 +234,13 @@ app.get('/api/products/:id/reviews', (req, res) => {
 // ---------- POST /api/products/:id/reviews (customer only) — submit a rating + optional comment ----------
 // Input:  { "rating": 5, "comment": "Great mug!" }
 // Output: 201 { "id":3, "customerName":"Jamie Customer", "rating":5, "comment":"Great mug!", "createdAt":"..." }
+// ---------- POST /api/products/:id/reviews (customer only) — submit a rating + optional comment ----------
+// One rating counts per customer per product: submitting again UPDATES your existing review
+// (both rating and comment) rather than adding a second entry, so the average is never skewed
+// by one customer rating the same product multiple times. Enforced via a UNIQUE(product_id,
+// customer_id) constraint at the database level, not just application-code discipline.
+// Input:  { "rating": 5, "comment": "Great mug!" }
+// Output: 201 (first time) or 200 (updating your existing review) — same body shape either way.
 app.post('/api/products/:id/reviews', authenticate('customer'), (req, res) => {
   const productId = Number(req.params.id);
   const { rating, comment } = req.body;
@@ -222,10 +250,18 @@ app.post('/api/products/:id/reviews', authenticate('customer'), (req, res) => {
   const product = db.prepare('SELECT id FROM products WHERE id = ?').get(productId);
   if (!product) return res.status(404).json({ error: 'Product not found' });
 
-  const result = db.prepare('INSERT INTO reviews (product_id, customer_id, customer_name, rating, comment) VALUES (?, ?, ?, ?, ?)')
-    .run(productId, req.user.id, req.user.name, rating, comment || null);
-  const created = db.prepare('SELECT id, customer_name AS customerName, rating, comment, created_at AS createdAt FROM reviews WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(created);
+  const existing = db.prepare('SELECT id FROM reviews WHERE product_id = ? AND customer_id = ?').get(productId, req.user.id);
+  let reviewId;
+  if (existing) {
+    db.prepare("UPDATE reviews SET rating = ?, comment = ?, created_at = datetime('now') WHERE id = ?")
+      .run(rating, comment || null, existing.id);
+    reviewId = existing.id;
+  } else {
+    reviewId = db.prepare('INSERT INTO reviews (product_id, customer_id, customer_name, rating, comment) VALUES (?, ?, ?, ?, ?)')
+      .run(productId, req.user.id, req.user.name, rating, comment || null).lastInsertRowid;
+  }
+  const saved = db.prepare('SELECT id, customer_name AS customerName, rating, comment, created_at AS createdAt FROM reviews WHERE id = ?').get(reviewId);
+  res.status(existing ? 200 : 201).json(saved);
 });
 
 // ---------- POST /api/orders (customer only) ----------
@@ -368,8 +404,19 @@ app.get('/api/revenue-summary', authenticate('merchant'), (req, res) => {
 // deterministic rules engine — so this feature can never break a live demo.
 // Output: { "insights": [ { "type":"reorder", "message":"..." } ], "source": "ai" | "rules" }
 
+// Pulls in rating/reviewCount alongside stock and sales pace — this is what lets insights
+// reason about product QUALITY, not just inventory levels. Without this join, a product that
+// sells fast but is quietly accumulating 2-star reviews would only ever show up as a reorder
+// candidate, which is the wrong advice — reordering more of a product customers are unhappy
+// with just compounds the problem.
 function gatherInsightData() {
-  const products = db.prepare('SELECT id, name, stock, avg_daily_sales AS avgDailySales FROM products').all();
+  const products = db.prepare(`
+    SELECT p.id, p.name, p.stock, p.avg_daily_sales AS avgDailySales,
+           ROUND(AVG(r.rating), 1) AS avgRating, COUNT(r.id) AS reviewCount
+    FROM products p
+    LEFT JOIN reviews r ON r.product_id = p.id
+    GROUP BY p.id
+  `).all();
   const daily = db.prepare(`SELECT date(created_at) AS date, SUM(total) AS revenue FROM orders GROUP BY date ORDER BY date DESC LIMIT 7`).all();
   return { products, daily };
 }
@@ -384,6 +431,15 @@ function ruleBasedInsights({ products, daily }) {
   atRisk.forEach(p => {
     insights.push({ type: 'reorder', message: `"${p.name}" has about ${Math.round(p.daysLeft)} day(s) of stock left at current sales pace — consider reordering now.` });
   });
+
+  // Quality-risk: selling at a healthy pace (so it's not just an unpopular product) but rated
+  // consistently low by customers who actually bought it. This is the recommendation a pure
+  // stock/sales view can never produce — it needs the reviews join above.
+  products
+    .filter(p => p.reviewCount >= 2 && p.avgRating !== null && p.avgRating <= 3.0 && p.avgDailySales >= 2)
+    .forEach(p => {
+      insights.push({ type: 'quality-risk', message: `"${p.name}" sells at a solid pace (${p.avgDailySales}/day) but averages only ${p.avgRating}★ across ${p.reviewCount} reviews — reordering more won't fix the underlying issue customers are reporting; worth reviewing the product itself before restocking.` });
+    });
 
   products.filter(p => p.avgDailySales <= 1 && p.stock > 20).forEach(p => {
     insights.push({ type: 'slow-mover', message: `"${p.name}" is selling slowly (${p.avgDailySales}/day) with ${p.stock} units still on hand — consider a promotion to free up cash tied in inventory.` });
@@ -405,9 +461,9 @@ async function aiInsights({ products, daily }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
 
-  const prompt = `You are a small-business retail advisor. Given this product and revenue data, return 2-4 short, specific, actionable recommendations as a JSON array of objects: [{"type":"reorder"|"slow-mover"|"revenue"|"ok","message":"..."}]. Only return the JSON array, nothing else.
+  const prompt = `You are a small-business retail advisor. Given this product and revenue data, return 2-4 short, specific, actionable recommendations as a JSON array of objects: [{"type":"reorder"|"quality-risk"|"slow-mover"|"revenue"|"ok","message":"..."}]. Use "quality-risk" specifically when a product sells at a decent pace but has a low average rating (3.0 or below) across 2+ reviews — that combination means reordering won't help, since the problem is the product itself, not demand. Only return the JSON array, nothing else.
 
-Products (name, stock, avg daily sales): ${JSON.stringify(products.map(p => ({ name: p.name, stock: p.stock, avgDailySales: p.avgDailySales })))}
+Products (name, stock, avg daily sales, avg rating, review count): ${JSON.stringify(products.map(p => ({ name: p.name, stock: p.stock, avgDailySales: p.avgDailySales, avgRating: p.avgRating, reviewCount: p.reviewCount })))}
 Last 7 days revenue by date: ${JSON.stringify(daily)}`;
 
   const controller = new AbortController();
@@ -451,7 +507,7 @@ app.get('/api/insights', authenticate('merchant'), async (req, res) => {
 // Merchants get business/data context injected; customers get product-catalog context.
 // Input:  { "message": "Which products need attention?", "history": [{"role":"user"|"assistant","content":"..."}] }
 // Output: { "reply": "...", "source": "ai" | "rules" }
-function ruleBasedChatReply(message, role, context) {
+function ruleBasedChatReply(message, role, context, history) {
   const lower = (message || '').toLowerCase();
   if (role === 'merchant') {
     if (lower.includes('stock') || lower.includes('reorder') || lower.includes('inventory')) {
@@ -464,7 +520,80 @@ function ruleBasedChatReply(message, role, context) {
     }
     return "I can help with stock/reorder questions and revenue questions right now — try asking something like \"what needs restocking?\"";
   }
-  return "I can help you find products or answer basic questions about what's in stock. Try asking about a category, like \"do you have anything in Accessories?\"";
+
+  // Customer path: this actually searches the real product catalog rather than
+  // returning a static message regardless of what was asked.
+  const products = context.products || [];
+  const categories = [...new Set(products.map(p => p.category))];
+
+  // 1. "Under/below $X" or "cheapest" — real price-based search.
+  const underMatch = lower.match(/under\s*\$?(\d+)|below\s*\$?(\d+)|less than\s*\$?(\d+)/);
+  if (underMatch) {
+    const limit = Number(underMatch[1] || underMatch[2] || underMatch[3]);
+    const matches = products.filter(p => p.price < limit).sort((a, b) => a.price - b.price);
+    if (matches.length === 0) return `Nothing under $${limit} right now — our lowest-priced item is ${products.sort((a, b) => a.price - b.price)[0]?.name || 'currently unavailable'}.`;
+    return `Under $${limit}: ${matches.map(p => `${p.name} ($${p.price.toFixed(2)})`).join(', ')}.`;
+  }
+  if (lower.includes('cheapest') || lower.includes('lowest price')) {
+    const cheapest = [...products].sort((a, b) => a.price - b.price)[0];
+    return cheapest ? `Our cheapest item is "${cheapest.name}" at $${cheapest.price.toFixed(2)}.` : "I couldn't find any products right now.";
+  }
+
+  // 2. Does the message name a category that exists in the catalog?
+  const matchedCategory = categories.find(c => lower.includes(c.toLowerCase()));
+  if (matchedCategory) {
+    const inCategory = products.filter(p => p.category === matchedCategory);
+    if (inCategory.length === 0) return `We don't currently have anything in ${matchedCategory}.`;
+    const list = inCategory.map(p => `${p.name} ($${p.price.toFixed(2)}, ${p.stock > 0 ? p.stock + ' in stock' : 'out of stock'})`).join('; ');
+    return `In ${matchedCategory}, we have: ${list}.`;
+  }
+
+  // 3. Does the message mention a specific product by name (or part of its name)?
+  const matchedProduct = products.find(p => {
+    const nameLower = p.name.toLowerCase();
+    return lower.includes(nameLower) || nameLower.split(' ').some(word => word.length > 3 && lower.includes(word));
+  });
+  if (matchedProduct) {
+    const stockPhrase = matchedProduct.stock > 0 ? `${matchedProduct.stock} in stock` : 'currently out of stock';
+    return `"${matchedProduct.name}" is $${matchedProduct.price.toFixed(2)}, ${stockPhrase}.`;
+  }
+
+  // 4. "What do you have" / "show me" / general browsing — list categories with counts.
+  if (lower.includes('what') || lower.includes('show') || lower.includes('have') || lower.includes('browse') || lower.includes('catalog')) {
+    const summary = categories.map(c => `${c} (${products.filter(p => p.category === c).length})`).join(', ');
+    return `Here's what we carry: ${summary}. Ask about any of these categories or a specific product for details.`;
+  }
+
+  // 5. Short-term memory: a brief follow-up ("how much?", "is it in stock?", "and that one?")
+  // can't be resolved on its own — check whether an earlier assistant reply in this
+  // conversation named a real product or category, and reuse that as context instead of
+  // immediately giving up. Only kicks in for short messages, so it doesn't override a
+  // genuinely new, self-contained question.
+  if (Array.isArray(history) && message.trim().split(/\s+/).length <= 6) {
+    const priorAssistantText = [...history].reverse().find(h => h.role === 'assistant')?.content || '';
+    const priorProduct = products.find(p => priorAssistantText.includes(`"${p.name}"`));
+    if (priorProduct && (lower.includes('how much') || lower.includes('price') || lower.includes('cost'))) {
+      return `"${priorProduct.name}" is $${priorProduct.price.toFixed(2)}.`;
+    }
+    if (priorProduct && (lower.includes('stock') || lower.includes('available') || lower.includes('left'))) {
+      return priorProduct.stock > 0 ? `Yes, "${priorProduct.name}" has ${priorProduct.stock} in stock.` : `Sorry, "${priorProduct.name}" is currently out of stock.`;
+    }
+    const priorCategory = categories.find(c => priorAssistantText.includes(`In ${c}`) || priorAssistantText.includes(`${c} (`));
+    if (priorCategory) {
+      const inCategory = products.filter(p => p.category === priorCategory);
+      if (lower.includes('more') || lower.includes('else') || lower.includes('other')) {
+        return `That's everything we have in ${priorCategory} right now: ${inCategory.map(p => p.name).join(', ')}.`;
+      }
+      // The prior reply named several products (a category listing), so a bare follow-up
+      // like "how much" is genuinely ambiguous — ask which one rather than claiming no match.
+      if (lower.includes('how much') || lower.includes('price') || lower.includes('cost') || lower.includes('stock') || lower.includes('available')) {
+        return `Which one did you mean — ${inCategory.map(p => p.name).join(', ')}?`;
+      }
+    }
+  }
+
+  // 6. No match found — still give something useful (real category names), not a generic platitude.
+  return `I couldn't find a match for that. We carry: ${categories.join(', ')}. Try asking about one of these, or a specific product name.`;
 }
 
 app.post('/api/chat', authenticate(), async (req, res) => {
@@ -500,10 +629,10 @@ app.post('/api/chat', authenticate(), async (req, res) => {
       const reply = data.content.map(b => b.text || '').join('');
       return res.json({ reply, source: 'ai' });
     } catch (err) {
-      return res.json({ reply: ruleBasedChatReply(message, role, context), source: 'rules', fallbackReason: err.message });
+      return res.json({ reply: ruleBasedChatReply(message, role, context, history), source: 'rules', fallbackReason: err.message });
     }
   }
-  return res.json({ reply: ruleBasedChatReply(message, role, context), source: 'rules', fallbackReason: 'ANTHROPIC_API_KEY not set' });
+  return res.json({ reply: ruleBasedChatReply(message, role, context, history), source: 'rules', fallbackReason: 'ANTHROPIC_API_KEY not set' });
 });
 
 // ---------- POST /api/products (merchant only) — add a new product ----------
@@ -554,6 +683,37 @@ app.put('/api/products/:id', authenticate('merchant'), upload.single('image'), (
     .run(name, category, price, stock, avgDailySales, icon, imageUrl, description, id);
 
   res.json({ id, name, category, price, stock, avgDailySales, icon, imageUrl, description });
+});
+
+// ---------- DELETE /api/products/:id (merchant only) ----------
+// Removing a product that has already been ordered would corrupt historical order records
+// (order_items referencing a product_id that no longer exists) — so this is blocked with a
+// 409 if the product has any order history. Its reviews are removed along with it, since
+// reviews aren't financial/inventory records the way past orders are.
+// Output — 200 OK: { "id": 7, "deleted": true, "name": "Wool beanie" }
+// Output — 409 Conflict (has order history): { "error": "Cannot delete \"Wool beanie\" — it has 2 existing order(s)..." }
+app.delete('/api/products/:id', authenticate('merchant'), (req, res) => {
+  const id = Number(req.params.id);
+  const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Product not found' });
+
+  const { orderCount } = db.prepare('SELECT COUNT(*) AS orderCount FROM order_items WHERE product_id = ?').get(id);
+  if (orderCount > 0) {
+    return res.status(409).json({
+      error: `Cannot delete "${existing.name}" — it has ${orderCount} existing order(s) referencing it. Deleting it would corrupt past order records.`
+    });
+  }
+
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM reviews WHERE product_id = ?').run(id);
+    db.prepare('DELETE FROM products WHERE id = ?').run(id);
+    db.exec('COMMIT');
+    res.json({ id, deleted: true, name: existing.name });
+  } catch (err) {
+    db.exec('ROLLBACK');
+    res.status(500).json({ error: 'Failed to delete product: ' + err.message });
+  }
 });
 
 // ---------- POST /api/products/:id/image (merchant only) — upload/replace a product photo on its own ----------
@@ -668,6 +828,27 @@ app.get('/api/messages/conversations', authenticate('merchant'), (req, res) => {
 app.get('/api/messages/unread-count', authenticate(), (req, res) => {
   const { count } = db.prepare('SELECT COUNT(*) AS count FROM messages WHERE recipient_id = ? AND read_at IS NULL').get(req.user.id);
   res.json({ count });
+});
+
+// ---------- 404 fallback for unmatched API routes ----------
+// Only catches /api/* paths that don't match any route above — page requests (e.g. a typo'd
+// URL) still fall through to the frontend static handler / browser's own 404 rendering, so this
+// doesn't interfere with normal page navigation.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `No API route for ${req.method} ${req.originalUrl}` });
+});
+
+// ---------- Global error-handling middleware ----------
+// Express recognizes this as an error handler specifically because it takes 4 arguments.
+// Without this, an unexpected exception thrown inside any route (a bug we didn't anticipate,
+// not one of the deliberate 400/401/403/404/409 cases already handled above) would either crash
+// the whole Node process — taking down the live demo for every user, not just the one request
+// that failed — or leak a raw stack trace (file paths, line numbers, internal function names)
+// straight into the HTTP response. This catches anything that slipped through, logs the real
+// error server-side for debugging, and returns a clean generic message to the client instead.
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Something went wrong on our end. Please try again.' });
 });
 
 if (require.main === module) {

@@ -232,22 +232,43 @@ test('TEST 20: GET /api/products/:id — single product detail includes descript
   assert.ok('avgRating' in res.data && 'reviewCount' in res.data, 'expected rating fields');
 });
 
-test('TEST 21: POST review + independent re-fetch — rating persists and average recalculates', async () => {
-  const custToken = await loginAs('customer');
+test('TEST 21: POST review + independent re-fetch — rating persists, and a second submission from the same customer UPDATES rather than duplicates', async () => {
+  // Uses a fresh throwaway account rather than the shared seeded customer1, since that
+  // account already has a review on some seed products — this test needs a clean slate
+  // to unambiguously verify count-goes-up-by-exactly-1 on first submission.
+  const username = 'reviewer_' + Date.now();
+  const reg = await call('POST', '/api/register', { username, password: 'testpass123', name: 'Review Tester', email: `${username}@example.com` });
+  const custToken = (await call('POST', '/api/verify-email', { username, code: reg.data.devCode })).data.token;
 
   const before = await call('GET', '/api/products/2');
   const countBefore = before.data.reviewCount;
 
-  const submitted = await call('POST', '/api/products/2/reviews', { rating: 5, comment: 'Independent test review' }, custToken);
-  assert.strictEqual(submitted.status, 201, `expected 201, got ${submitted.status}`);
+  const firstSubmit = await call('POST', '/api/products/2/reviews', { rating: 5, comment: 'Independent test review' }, custToken);
+  assert.strictEqual(firstSubmit.status, 201, `expected 201 on first submission, got ${firstSubmit.status}`);
 
   // Independent re-fetch — does not trust the POST response, confirms the review and
   // recalculated average both actually persisted server-side.
-  const after = await call('GET', '/api/products/2');
-  assert.strictEqual(after.data.reviewCount, countBefore + 1, 'expected review count to increase by exactly 1 on independent re-fetch');
+  const afterFirst = await call('GET', '/api/products/2');
+  assert.strictEqual(afterFirst.data.reviewCount, countBefore + 1, 'expected review count to increase by exactly 1 on independent re-fetch');
 
   const list = await call('GET', '/api/products/2/reviews');
   assert.ok(list.data.some(r => r.comment === 'Independent test review'), 'expected the new review to appear in the reviews list');
+
+  // Submitting a SECOND review from the SAME customer for the SAME product must update the
+  // existing row, not add a duplicate — this is the specific behavior requested after real
+  // users could otherwise rate the same product multiple times and skew the average.
+  const secondSubmit = await call('POST', '/api/products/2/reviews', { rating: 1, comment: 'Changed my mind' }, custToken);
+  assert.strictEqual(secondSubmit.status, 200, `expected 200 (update) on a second submission from the same customer, got ${secondSubmit.status}`);
+
+  // Independent re-fetch: review count must NOT have grown a second time...
+  const afterSecond = await call('GET', '/api/products/2');
+  assert.strictEqual(afterSecond.data.reviewCount, countBefore + 1, 'expected review count to stay the same after a second submission from the same customer (update, not duplicate)');
+
+  // ...and the visible review content must reflect the updated rating, not the original.
+  const listAfter = await call('GET', '/api/products/2/reviews');
+  const ownReviews = listAfter.data.filter(r => r.comment === 'Changed my mind' || r.comment === 'Independent test review');
+  assert.strictEqual(ownReviews.length, 1, 'expected exactly one review from this customer after the update, not two');
+  assert.strictEqual(ownReviews[0].comment, 'Changed my mind', 'expected the review content to reflect the update');
 });
 
 test('TEST 22: Order status defaults to pending, then PUT + independent re-fetch confirms the transition', async () => {
@@ -286,6 +307,27 @@ test('TEST 24: POST /api/chat — merchant gets a reply referencing real invento
   assert.strictEqual(res.status, 200);
   assert.ok(res.data.reply && res.data.reply.length > 0, 'expected a non-empty reply');
   assert.ok(['ai', 'rules'].includes(res.data.source), 'expected source to be ai or rules');
+});
+
+test('TEST 31: POST /api/chat (customer) — genuinely searches the product catalog, giving distinct answers to distinct questions', async () => {
+  const custToken = await loginAs('customer');
+
+  // Two clearly different questions must NOT produce the identical canned reply — this
+  // is the specific regression this test guards against (the customer path previously
+  // returned one static message regardless of what was asked).
+  const askAccessories = await call('POST', '/api/chat', { message: 'do you have anything in Accessories?' }, custToken);
+  const askMug = await call('POST', '/api/chat', { message: 'how much is the ceramic mug?' }, custToken);
+  assert.notStrictEqual(askAccessories.data.reply, askMug.data.reply, 'expected different questions to produce different answers, not one static reply');
+
+  // The Accessories answer should actually reference real catalog data, not just repeat the word back.
+  assert.match(askAccessories.data.reply, /Accessories/, 'expected the reply to reference the requested category');
+
+  // A question naming a specific real product should surface its actual price from the database.
+  assert.match(askMug.data.reply, /\$18/, 'expected the reply to include the Ceramic mug\'s real price from the database');
+
+  // A question that matches nothing should still return real category names, not an empty platitude.
+  const askUnrelated = await call('POST', '/api/chat', { message: 'I need Duke' }, custToken);
+  assert.match(askUnrelated.data.reply, /Home|Accessories|Bath/, 'expected a no-match reply to still list real catalog categories');
 });
 
 test('TEST 25: Registration + email verification — full self-contained flow, independent login proves it persisted', async () => {
@@ -365,6 +407,53 @@ test('TEST 27: Messaging — customer sends, merchant reads, replies, and both s
 
   const custThreadAfter = await call('GET', '/api/messages/thread', null, custToken);
   assert.ok(custThreadAfter.data.some(m => m.id === reply.data.id), 'expected the merchant\'s reply to appear in the customer\'s thread on independent re-fetch');
+});
+
+test('TEST 28: DELETE /api/products/:id + independent re-fetch — a never-ordered product is actually removed', async () => {
+  const merchToken = await loginAs('merchant');
+
+  // Create a throwaway product with no order history, so this test never depends on
+  // whether other tests have placed orders against shared seed products.
+  const created = await call('POST', '/api/products', { name: 'Delete-me test product', category: 'Test', price: 1, stock: 1 }, merchToken);
+  assert.strictEqual(created.status, 201);
+  const id = created.data.id;
+
+  const del = await call('DELETE', `/api/products/${id}`, null, merchToken);
+  assert.strictEqual(del.status, 200, `expected 200, got ${del.status}: ${JSON.stringify(del.data)}`);
+  assert.strictEqual(del.data.deleted, true);
+
+  // Independent re-fetch — does not trust the DELETE response, confirms the row is
+  // genuinely gone from a fresh GET /api/products call.
+  const after = await call('GET', '/api/products');
+  assert.ok(!after.data.some(p => p.id === id), `expected product ${id} to be absent from the catalog on independent re-fetch`);
+});
+
+test('TEST 29: DELETE /api/products/:id — blocked (409) for a product with existing order history', async () => {
+  const merchToken = await loginAs('merchant');
+  const custToken = await loginAs('customer');
+
+  // Create a product and immediately order it, so this test controls its own order history
+  // rather than depending on whatever other tests have already ordered.
+  const created = await call('POST', '/api/products', { name: 'Has-orders test product', category: 'Test', price: 5, stock: 10 }, merchToken);
+  const id = created.data.id;
+  const order = await call('POST', '/api/orders', { items: [{ productId: id, qty: 1 }] }, custToken);
+  assert.strictEqual(order.status, 201);
+
+  const del = await call('DELETE', `/api/products/${id}`, null, merchToken);
+  assert.strictEqual(del.status, 409, `expected 409, got ${del.status}`);
+
+  // Independent re-fetch confirms the product was NOT removed despite the attempt.
+  const after = await call('GET', '/api/products');
+  assert.ok(after.data.some(p => p.id === id), 'expected the product to still exist after a blocked delete');
+});
+
+test('TEST 30: DELETE /api/products/:id — customer token blocked, expect 403', async () => {
+  const merchToken = await loginAs('merchant');
+  const custToken = await loginAs('customer');
+  const created = await call('POST', '/api/products', { name: 'Auth test product', category: 'Test', price: 1, stock: 1 }, merchToken);
+
+  const res = await call('DELETE', `/api/products/${created.data.id}`, null, custToken);
+  assert.strictEqual(res.status, 403, `expected 403, got ${res.status}`);
 });
 
 // Minimal JWT payload decoder for test purposes only (no signature verification needed —

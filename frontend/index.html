@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShopEase — Handmade &amp; local goods, made simple</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23c9622f%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 font-family=%22Arial%22 font-weight=%22800%22 fill=%22white%22 text-anchor=%22middle%22>S</text></svg>">
+<style>
+  :root {
+    --clay: #c9622f; --clay-dark: #a04e24; --ink: #201d1a; --sub: #6b665f;
+    --line: #e4e0d8; --bg: #faf8f4; --panel: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(32,29,26,0.04), 0 1px 3px rgba(32,29,26,0.06);
+    --shadow-md: 0 4px 10px rgba(32,29,26,0.06), 0 2px 4px rgba(32,29,26,0.05);
+    --shadow-lg: 0 20px 45px rgba(32,29,26,0.14), 0 6px 14px rgba(32,29,26,0.06);
+    --radius-sm: 10px; --radius-md: 14px; --radius-lg: 22px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  a { text-decoration: none; color: inherit; }
+
+  /* ---------- top nav ---------- */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 40px; background: rgba(250,248,244,0.85); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20; border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 800; font-size: 22px; letter-spacing: -0.03em; }
+  .brand span { color: var(--clay); }
+  nav.top-links { display: flex; align-items: center; gap: 28px; }
+  nav.top-links a.navlink { font-size: 14px; font-weight: 600; color: var(--sub); }
+  nav.top-links a.navlink:hover { color: var(--ink); }
+  .nav-cta { display: flex; gap: 10px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; border: none; transition: transform 0.15s, box-shadow 0.15s, background 0.15s; }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { background: var(--clay); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+  .btn-ghost:hover { box-shadow: var(--shadow-sm); border-color: #d8d2c4; }
+
+  /* ---------- hero ---------- */
+  .hero-wrap { position: relative; overflow: hidden; padding: 88px 40px 70px; }
+  .hero-wrap::before { content: ""; position: absolute; top: -200px; right: -160px; width: 620px; height: 620px; border-radius: 50%; background: radial-gradient(circle, rgba(201,98,47,0.16), rgba(201,98,47,0) 70%); pointer-events: none; }
+  .hero-wrap::after { content: ""; position: absolute; bottom: -240px; left: -180px; width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(circle, rgba(140,162,110,0.14), rgba(140,162,110,0) 70%); pointer-events: none; }
+  .hero-inner { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; position: relative; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 6px 14px; font-size: 12.5px; font-weight: 700; color: var(--clay-dark); box-shadow: var(--shadow-sm); margin-bottom: 22px; }
+  .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: #1d7a4c; box-shadow: 0 0 0 3px rgba(29,122,76,0.18); }
+  .hero-inner h1 { font-size: 52px; line-height: 1.08; margin: 0 0 20px; font-weight: 800; letter-spacing: -0.03em; }
+  .hero-inner h1 em { font-style: normal; color: var(--clay); }
+  .hero-inner p.lead { font-size: 17px; line-height: 1.6; color: var(--sub); max-width: 480px; margin: 0 0 32px; }
+  .hero-ctas { display: flex; gap: 14px; margin-bottom: 34px; flex-wrap: wrap; }
+  .hero-ctas .btn { padding: 14px 26px; font-size: 15px; }
+  .trust-row { display: flex; gap: 26px; flex-wrap: wrap; }
+  .trust-row .stat b { display: block; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+  .trust-row .stat span { font-size: 12.5px; color: var(--sub); font-weight: 600; }
+
+  /* ---------- hero visual: floating product cards ---------- */
+  .hero-visual { position: relative; height: 420px; }
+  .float-card { position: absolute; background: var(--panel); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 12px; width: 168px; animation: floaty 6s ease-in-out infinite; }
+  .float-card img { width: 100%; height: 110px; object-fit: contain; border-radius: var(--radius-sm); background: linear-gradient(135deg, #f0ece2, #e4dfd2); display: block; }
+  .float-card .fc-name { font-size: 12.5px; font-weight: 700; margin-top: 9px; }
+  .float-card .fc-price { font-size: 12px; color: var(--clay-dark); font-weight: 800; margin-top: 2px; }
+  .float-card.c1 { top: 6px; left: 40px; z-index: 3; animation-delay: 0s; }
+  .float-card.c2 { top: 130px; right: 10px; z-index: 2; width: 150px; animation-delay: 1.4s; }
+  .float-card.c3 { bottom: 4px; left: 90px; z-index: 1; width: 150px; animation-delay: 2.6s; }
+  .badge-float { position: absolute; top: 70px; right: 60px; z-index: 4; background: var(--ink); color: #fff; border-radius: 50%; width: 88px; height: 88px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-weight: 800; box-shadow: var(--shadow-lg); animation: floaty 6s ease-in-out infinite; animation-delay: 0.8s; }
+  .badge-float b { font-size: 17px; }
+  .badge-float span { font-size: 9px; font-weight: 600; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.04em; }
+  @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+
+  /* ---------- feature grid ---------- */
+  .section { max-width: 1180px; margin: 0 auto; padding: 70px 40px; }
+  .section-head { text-align: center; max-width: 620px; margin: 0 auto 46px; }
+  .section-head .kicker { font-size: 12.5px; font-weight: 700; color: var(--clay-dark); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .section-head h2 { font-size: 32px; margin: 0 0 12px; font-weight: 800; letter-spacing: -0.02em; }
+  .section-head p { color: var(--sub); font-size: 15px; line-height: 1.6; margin: 0; }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .feature-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 28px 24px; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s, transform 0.2s; }
+  .feature-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .feature-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 16px; }
+  .feature-icon.i1 { background: #fbe9d9; }
+  .feature-icon.i2 { background: #e2f2e8; }
+  .feature-icon.i3 { background: #e6edf5; }
+  .feature-card h3 { font-size: 16px; margin: 0 0 8px; font-weight: 700; }
+  .feature-card p { font-size: 13.5px; color: var(--sub); line-height: 1.6; margin: 0; }
+
+  /* ---------- product showcase ---------- */
+  .showcase-wrap { background: var(--panel); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .product-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
+  .pcard { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px; background: var(--bg); transition: box-shadow 0.2s, transform 0.2s; }
+  .pcard:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .pcard img { width: 100%; height: 108px; object-fit: contain; border-radius: var(--radius-sm); background: linear-gradient(135deg, #f0ece2, #e4dfd2); display: block; margin-bottom: 10px; }
+  .pcard .pname { font-size: 13px; font-weight: 700; }
+  .pcard .pprice { font-size: 12.5px; color: var(--clay-dark); font-weight: 800; margin-top: 2px; }
+
+  /* ---------- audience split (customer vs merchant) ---------- */
+  .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .split-card { border-radius: var(--radius-lg); padding: 36px; position: relative; overflow: hidden; box-shadow: var(--shadow-md); }
+  .split-card.customer { background: linear-gradient(135deg, #f3e3d2, #e9c9a8); }
+  .split-card.merchant { background: linear-gradient(135deg, #20201c, #3a3530); color: #fff; }
+  .split-card h3 { font-size: 22px; margin: 0 0 10px; font-weight: 800; letter-spacing: -0.01em; }
+  .split-card p { font-size: 14px; line-height: 1.6; margin: 0 0 22px; max-width: 340px; }
+  .split-card.customer p { color: #5a4632; }
+  .split-card.merchant p { color: #cfc9c0; }
+  .split-card .btn { padding: 12px 22px; }
+  .split-card.merchant .btn-primary { background: #fff; color: var(--ink); }
+  .split-card.merchant .btn-primary:hover { background: var(--clay); color: #fff; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line); padding: 34px 40px; }
+  .footer-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+  .footer-inner .brand { font-size: 16px; }
+  .footer-links { display: flex; gap: 22px; font-size: 13px; color: var(--sub); font-weight: 600; }
+  .footer-note { font-size: 12px; color: var(--sub); }
+
+  @media (max-width: 900px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .hero-visual { display: none; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .split-grid { grid-template-columns: 1fr; }
+    .product-strip { grid-template-columns: repeat(2, 1fr); }
+    nav.top-links a.navlink { display: none; }
+    .hero-inner h1 { font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Shop<span>Ease</span></div>
+  <nav class="top-links">
+    <a class="navlink" href="#features">Why ShopEase</a>
+    <a class="navlink" href="#shop">Shop</a>
+    <a class="navlink" href="#audience">For merchants</a>
+  </nav>
+  <div class="nav-cta">
+    <a class="btn btn-ghost" href="login.html">Log in</a>
+    <a class="btn btn-primary" href="login.html">Start shopping</a>
+  </div>
+</header>
+
+<section class="hero-wrap">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow"><span class="dot"></span> Live marketplace &middot; deployed on the cloud</div>
+      <h1>Handmade goods,<br><em>effortless</em> shopping.</h1>
+      <p class="lead">ShopEase connects local makers with people who want something real — plus an AI-powered dashboard that helps small merchants actually understand their inventory, not just track it.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="login.html">Browse the storefront</a>
+        <a class="btn btn-ghost" href="login.html">I'm a merchant</a>
+      </div>
+      <div class="trust-row">
+        <div class="stat"><b>18+</b><span>Handmade products</span></div>
+        <div class="stat"><b>4.6★</b><span>Avg. customer rating</span></div>
+        <div class="stat"><b>24/7</b><span>AI shopping assistant</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="badge-float"><b>Live</b><span>Demo</span></div>
+      <div class="float-card c1">
+        <img src="uploads/seed-ceramic-mug.png" alt="Ceramic mug">
+        <div class="fc-name">Ceramic mug</div>
+        <div class="fc-price">$18.00</div>
+      </div>
+      <div class="float-card c2">
+        <img src="uploads/seed-woven-tote.png" alt="Woven tote">
+        <div class="fc-name">Woven tote bag</div>
+        <div class="fc-price">$32.00</div>
+      </div>
+      <div class="float-card c3">
+        <img src="uploads/seed-scented-candle.png" alt="Scented candle">
+        <div class="fc-name">Scented candle</div>
+        <div class="fc-price">$14.00</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="section-head">
+    <div class="kicker">Why ShopEase</div>
+    <h2>Built like a real store, not a school project</h2>
+    <p>Every layer — auth, inventory, checkout, messaging — runs on a real deployed backend with automated tests behind it.</p>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon i1">📦</div>
+      <h3>Real-time inventory</h3>
+      <p>Stock levels update the moment an order is placed — race conditions are handled with real database transactions, not hope.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon i2">🤖</div>
+      <h3>AI-backed insights</h3>
+      <p>Merchants get restocking and quality-risk recommendations grounded in real sales and rating data — with a safe rules-based fallback if the AI call ever fails.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon i3">🔒</div>
+      <h3>Secure by default</h3>
+      <p>Parameterized queries, escaped output, JWT auth, and hardened response headers — not an afterthought bolted on at the end.</p>
+    </div>
+  </div>
+</section>
+
+<div class="showcase-wrap">
+  <section class="section" id="shop">
+    <div class="section-head">
+      <div class="kicker">A peek inside</div>
+      <h2>Handmade &amp; local goods</h2>
+      <p>A small sample of what's in the storefront right now — log in to see the full catalog.</p>
+    </div>
+    <div class="product-strip">
+      <div class="pcard"><img src="uploads/seed-leather-wallet.png" alt="Leather wallet"><div class="pname">Leather wallet</div><div class="pprice">$45.00</div></div>
+      <div class="pcard"><img src="uploads/seed-linen-notebook.png" alt="Linen notebook"><div class="pname">Linen notebook</div><div class="pprice">$16.00</div></div>
+      <div class="pcard"><img src="uploads/seed-ceramic-planter.png" alt="Ceramic planter"><div class="pname">Ceramic planter</div><div class="pprice">$24.00</div></div>
+      <div class="pcard"><img src="uploads/seed-brass-earrings.png" alt="Brass earrings"><div class="pname">Brass drop earrings</div><div class="pprice">$19.00</div></div>
+      <div class="pcard"><img src="uploads/seed-beeswax-lip-balm.png" alt="Beeswax lip balm"><div class="pname">Beeswax lip balm trio</div><div class="pprice">$12.00</div></div>
+    </div>
+  </section>
+</div>
+
+<section class="section" id="audience">
+  <div class="section-head">
+    <div class="kicker">Two sides, one platform</div>
+    <h2>Whether you're shopping or selling</h2>
+  </div>
+  <div class="split-grid">
+    <div class="split-card customer">
+      <h3>Shopping for something real</h3>
+      <p>Browse by category, chat with an AI assistant that actually knows the catalog, and check out with live stock validation.</p>
+      <a class="btn btn-primary" href="login.html">Shop the storefront</a>
+    </div>
+    <div class="split-card merchant">
+      <h3>Running a small shop</h3>
+      <p>Track revenue trends, get restocking alerts before you sell out, and catch quality issues your sales numbers alone would miss.</p>
+      <a class="btn btn-primary" href="login.html">Go to merchant dashboard</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="brand">Shop<span style="color:var(--clay)">Ease</span></div>
+    <div class="footer-links">
+      <a href="login.html">Log in</a>
+      <a href="login.html">Create account</a>
+    </div>
+    <div class="footer-note">Deployed on Google Cloud &middot; built for CIS 498</div>
+  </div>
+</footer>
+
+</body>
+</html>

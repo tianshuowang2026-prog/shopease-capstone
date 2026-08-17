@@ -23,7 +23,7 @@
 </style>
 </head>
 <body>
-<header><div class="brand">Shop<span>Ease</span></div></header>
+<header><a href="index.html" style="text-decoration:none;color:inherit"><div class="brand">Shop<span>Ease</span></div></a></header>
 <div class="login-wrap">
   <div class="login-card">
 
@@ -101,7 +101,7 @@
   </div>
 </div>
 <script>
-const API_BASE = 'http://localhost:3000';
+const API_BASE = window.location.origin;
 let pendingUsername = '';
 
 function showPanel(name) {
@@ -145,7 +145,7 @@ async function attemptLogin() {
     errorEl.style.display = 'block';
   }
 }
-document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) attemptLogin(); });
 
 async function attemptRegister() {
   const name = document.getElementById('regName').value.trim();
